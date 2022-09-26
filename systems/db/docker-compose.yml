@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:14.5-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - target: 5432
+        published: 24056
+volumes:
+  db:
+    driver: local
