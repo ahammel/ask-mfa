@@ -95,39 +95,38 @@ CREATE OR REPLACE FUNCTION text_search(query TEXT)
     RETURNS TABLE
             (
                 question_id        TEXT,
-                relevance          FLOAT4,
+                answer_id          TEXT,
+                answer_parent_id   TEXT,
                 question_text      TEXT,
+                answer_text        TEXT,
                 question_author    TEXT,
-                question_score     INTEGER,
+                answer_author      TEXT,
+                question_score     INT,
+                answer_score       INT,
                 question_permalink TEXT,
+                answer_permalink   TEXT,
                 thread_id          TEXT,
-                thread_created_utc INTEGER
+                thread_created_utc INTEGER,
+                relevance          FLOAT4
             )
     LANGUAGE plpgsql
 AS
 $$
 BEGIN
     RETURN QUERY
-        SELECT answers.question_id,
-               max(ts_rank_cd(to_tsvector('english', answers.question_text || ' ' || answers.answer_text),
-                              plainto_tsquery('english', query))) AS relevance,
-               answers.question_text,
-               answers.question_author,
-               answers.question_score,
-               answers.question_permalink,
-               answers.thread_id,
-               answers.thread_created_utc
+        SELECT answers.*, results.relevance
         FROM answers
-        WHERE to_tsvector('english', answers.question_text || ' ' || answers.answer_text) @@
-              plainto_tsquery('english', query)
-        GROUP BY answers.question_id,
-                 answers.question_author,
-                 answers.question_score,
-                 answers.question_text,
-                 answers.question_permalink,
-                 answers.thread_id,
-                 answers.thread_created_utc
-        ORDER BY relevance DESC
-        LIMIT 10;
+                 JOIN (SELECT answers.question_id,
+                              max(ts_rank_cd(
+                                      to_tsvector('english', answers.question_text || ' ' || answers.answer_text),
+                                      plainto_tsquery('english', query))) AS relevance
+                       FROM answers
+                       WHERE to_tsvector('english', answers.question_text || ' ' || answers.answer_text) @@
+                             plainto_tsquery('english', query)
+                       GROUP BY answers.question_id
+                       ORDER BY relevance DESC
+                       LIMIT 10) AS results
+                      ON answers.question_id = results.question_id
+        ORDER BY results.relevance DESC, answers.question_id;
 END;
 $$;
