@@ -19,6 +19,9 @@ clean:
 black b: $(PYTHON_DEPENDENCIES) $(ACTIVATE)
 	source $(ACTIVATE) && python -m black .
 
+repl: $(PYTHON_DEPENDENCIES) $(ACTIVATE)
+	source $(ACTIVATE) && python
+
 $(ACTIVATE):
 	python3 -m venv ./python
 
