@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 import os
+from pprint import pprint
 from typing import List
 
 import psycopg2
@@ -10,6 +10,39 @@ PORT = os.environ.get("ASK_MFA_POSTGRES_PORT")
 DB = os.environ.get("ASK_MFA_POSTGRESS_DB")
 USER = os.environ.get("ASK_MFA_POSTGRES_USER")
 PASSWORD = os.environ.get("ASK_MFA_POSTGRES_PASSWORD")
+
+
+## Service
+
+
+def connect():
+    """Returns a psycopg2 connection given postgresql connection params from the
+    environment.
+
+    """
+    return psycopg2.connect(
+        host=HOST, port=PORT, dbname=DB, user=USER, password=PASSWORD
+    )
+
+
+class CLIService:
+    """Service which executes queries from the stdin in a loop, printing the results to
+    stdout.
+
+    """
+
+    def __init__(self, query_provider):
+        self.query_provider = query_provider
+
+    def run(self):
+        while True:
+            try:
+                query = input()
+            except EOFError:
+                break
+            result = self.query_provider.text_search(query)
+            pprint([asdict(row) for row in reversed(result)])
+
 
 ## Core
 
@@ -34,20 +67,10 @@ class QueryResult:
     relevance: float
 
 
-class QueryProvider(ABC):
-    """Interface to text search queries."""
-
-    @abstractmethod
-    def text_search(self, query: str) -> List[QueryResult]:
-        """Returns the top threads matching the query string, sorted by
-        relevance.
-        """
-
-
 ### DB
 
 
-class DbQueryPovider(QueryProvider):
+class DbQueryPovider:
     """QueryProvider using Postgres as the storage medium."""
 
     def __init__(self, conn):
@@ -60,15 +83,8 @@ class DbQueryPovider(QueryProvider):
 
 
 if __name__ == "__main__":
-    from pprint import pprint
-
-    conn = psycopg2.connect(
-        host=HOST, port=PORT, dbname=DB, user=USER, password=PASSWORD
-    )
+    conn = connect()
     try:
-        query_provider = DbQueryPovider(conn)
-        pprint(
-            [asdict(res) for res in query_provider.text_search("margiela gat sizing")]
-        )
+        CLIService(query_provider=DbQueryPovider(conn)).run()
     finally:
         conn.close()
